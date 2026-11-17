@@ -983,14 +983,14 @@ with c7:
 # ==============================================================================
 tab_m1, tab_m2, tab_m3, tab_m4, tab_m5, tab_m6, tab_m7, tab_m8 = st.tabs(
     [
-        "🎯 M1: Giao Chỉ tiêu",
-        "📁 M2: Bệnh án",
-        "💊 M3: Duyệt Đơn Ngoại",
-        "🏥 M4: Duyệt Đơn Nội",
-        "🗣️ M5: Tư vấn Ngoại trú",
-        "🩺 M6: Hội chẩn",
-        "⚖️ M7: Chỉnh liều",
-        "🏆 M8: Tổng hợp KPI",
+        "🎯 M1: CHỈ TIÊU",
+        "📁 M2: KIỂM TRA BỆNH ÁN",
+        "💊 M3: DUYỆT ĐƠN NGOẠI TRÚ",
+        "🏥 M4: DUYỆT ĐƠN NỘI TRÚ",
+        "🗣️ M5: TƯ VẤN ĐƠN NGOẠI TRÚ",
+        "🩺 M6: HỘI CHẨN",
+        "⚖️ M7: HIỆU CHỈNH LIỆU",
+        "🏆 M8: TỔNG HỢP KPI",
     ]
 )
 
