@@ -1,6 +1,6 @@
 {
   "app_version": "v6.0_persistent_split_rx_daily_counsel",
-  "updated_at": "2026-11-17 07:56:53",
+  "updated_at": "2026-11-17 07:57:43",
   "config": {
     "max_score_cap": 100.0,
     "ignore_zero_targets": true,
@@ -110,7 +110,7 @@
       "name": "Nguyễn Tuấn Hùng",
       "department": "Khoa Ngoại Tổng hợp 01 - Chấn thương & PTTK",
       "assigned_task": "Hội chẩn sử dụng thuốc; rà soát bệnh án, hiệu chỉnh liều và can thiệp DLS tại khoa Ngoại tổng hợp - Chấn thương 01.",
-      "target_hsba": 70,
+      "target_hsba": 35,
       "target_rx_out": 0,
       "target_rx_in": 175,
       "target_counsel_out": 0,
