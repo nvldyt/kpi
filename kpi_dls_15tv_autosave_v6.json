@@ -1,6 +1,6 @@
 {
   "app_version": "v6.0_persistent_split_rx_daily_counsel",
-  "updated_at": "2026-11-17 07:48:13",
+  "updated_at": "2026-11-17 07:48:17",
   "config": {
     "max_score_cap": 100.0,
     "ignore_zero_targets": true,
@@ -288,7 +288,7 @@
     {
       "id": "#07",
       "name": "Trịnh Thị Ngọc Lê",
-      "department": "Khoa Nội Hô hấp - Tiêu hóa",
+      "department": "Khoa YHCT 01 và 3 Chuyên khoa",
       "assigned_task": "Hội chẩn sử dụng thuốc; rà soát bệnh án, hiệu chỉnh liều và can thiệp DLS tại khoa TMH, RHM, Mắt, YHCT 01.",
       "target_hsba": 75,
       "target_rx_out": 50,
