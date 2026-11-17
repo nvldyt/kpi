@@ -190,6 +190,7 @@ CLINICAL_DEPARTMENTS = [
     "Khoa YHCT 02",
     "Khoa Ngoại Tổng hợp 01 - Chấn thương & PTTK",
     "Khoa Khám bệnh 02",
+    "Khoa Khám bệnh 03",
     "Khoa Hồi sức tích cực - Chống độc 02",
     "Khoa Ngoại Tổng hợp 02",
     "Khoa Nội trú CS3",
