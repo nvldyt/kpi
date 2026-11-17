@@ -179,24 +179,21 @@ GITHUB_BACKUP_PATH = "kpi_dls_15tv_autosave_v6.json"
 WEEKDAYS = ["Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6"]
 
 CLINICAL_DEPARTMENTS = [
-    "Ban Giám đốc & Phòng KHTH (Điều phối chung)",
-    "Khoa Khám bệnh & Điều trị Ngoại trú",
-    "Khoa Hồi sức tích cực - Chống độc (ICU)",
-    "Khoa Nội Tim mạch - Lão học",
+    "Khoa Khám bệnh 01",
+    "Khoa Hồi sức tích cực - Chống độc 01",
+    "Khoa Nội Tim mạch và Bệnh nhiệt đới",
     "Khoa Nội tiết - Đái tháo đường",
-    "Khoa Bệnh nhiệt đới & Truyền nhiễm",
-    "Khoa Thận - Tiết niệu & Lọc máu",
-    "Khoa Nội Hô hấp - Tiêu hóa",
-    "Khoa Sản - Phụ khoa",
-    "Khoa Nhi tổng hợp",
-    "Khoa Ung bướu & Huyết học lâm sàng",
-    "Khoa Phẫu thuật - Gây mê hồi sức",
-    "Khoa Ngoại Tổng hợp & Chấn thương",
-    "Khoa Thần kinh - Cơ xương khớp",
-    "Đơn vị Quản lý Đau & Chăm sóc giảm nhẹ",
-    "Trung tâm Thông tin thuốc & Cảnh giác Dược (DI & ADR)",
-    "Phòng Bảo hiểm Y tế & Kinh tế Dược",
-    "Trung tâm Đào tạo & Nghiên cứu Khoa học",
+    "Khoa Nội Tổng hợp 01",
+    "Khoa Sản - Phụ khoa và Khoa Nhi",
+    "Khoa Nội Tổng hợp 02",
+    "Khoa YHCT 01 và 3 Chuyên khoa",
+    "Khoa YHCT 02",
+    "Khoa Ngoại Tổng hợp 01 - Chấn thương & PTTK",
+    "Khoa Khám bệnh 02",
+    "Khoa Hồi sức tích cực - Chống độc 02",
+    "Khoa Ngoại Tổng hợp 02",
+    "Khoa Nội trú CS3",
+    "Khoa 3 Chuyên khoa CS2",
 ]
 
 DEPARTMENT_DEFAULT_TARGETS = {
