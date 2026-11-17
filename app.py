@@ -987,9 +987,9 @@ tab_m1, tab_m2, tab_m3, tab_m4, tab_m5, tab_m6, tab_m7, tab_m8 = st.tabs(
         "📁 M2: KIỂM TRA BỆNH ÁN",
         "💊 M3: DUYỆT ĐƠN NGOẠI TRÚ",
         "🏥 M4: DUYỆT ĐƠN NỘI TRÚ",
-        "🗣️ M5: TƯ VẤN ĐƠN NGOẠI TRÚ",
+        "🗣️ M5: TƯ VẤN NGOẠI TRÚ",
         "🩺 M6: HỘI CHẨN",
-        "⚖️ M7: HIỆU CHỈNH LIỆU",
+        "⚖️ M7: THAM VẤN",
         "🏆 M8: TỔNG HỢP KPI",
     ]
 )
