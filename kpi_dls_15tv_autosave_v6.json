@@ -1,6 +1,6 @@
 {
   "app_version": "v6.0_persistent_split_rx_daily_counsel",
-  "updated_at": "2026-11-17 08:03:23",
+  "updated_at": "2026-11-17 08:03:27",
   "config": {
     "max_score_cap": 100.0,
     "ignore_zero_targets": true,
@@ -248,7 +248,7 @@
       "target_hsba": 35,
       "target_rx_out": 0,
       "target_rx_in": 600,
-      "target_counsel_out": 80,
+      "target_counsel_out": 100,
       "target_consult": 15,
       "target_dose": 20,
       "doctor_consensus_pct": 95.0,
