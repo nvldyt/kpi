@@ -1,6 +1,6 @@
 {
   "app_version": "v6.0_persistent_split_rx_daily_counsel",
-  "updated_at": "2026-11-17 07:48:52",
+  "updated_at": "2026-11-17 07:49:53",
   "config": {
     "max_score_cap": 100.0,
     "ignore_zero_targets": true,
@@ -648,7 +648,7 @@
     {
       "id": "#15",
       "name": "Lê Thị Thảo",
-      "department": "Khoa Khám bệnh & Điều trị Ngoại trú",
+      "department": "Khoa Khám bệnh 03",
       "assigned_task": "Hội chẩn sử dụng thuốc; rà soát bệnh án, duyệt đơn, hiệu chỉnh liều và can thiệp DLS tại Cơ sở 03.",
       "target_hsba": 0,
       "target_rx_out": 300,
