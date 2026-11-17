@@ -635,4 +635,880 @@ def compute_all_kpi_dataframes(records, config):
     df[["pct_consult", "score_m6_consult"]] = df.apply(calc_m6, axis=1)
 
     # --- M7: CAN THIỆP CHỈNH LIỀU (65% Số lượng + 35% Thành công) ---
-    dose_days = ["dose_t2", "dose_t3", "dose_t4", "dose_t5", "dose_t6
+    dose_days = ["dose_t2", "dose_t3", "dose_t4", "dose_t5", "dose_t6"]
+    df["done_dose"] = df[dose_days].sum(axis=1)
+    df["diff_dose"] = df["done_dose"] - df["target_dose"]
+
+    def calc_m7(row):
+        t, d, succ = row["target_dose"], row["done_dose"], row["intervention_success_pct"]
+        if t <= 0:
+            return pd.Series([100.0, 100.0])
+        if d <= 0:
+            return pd.Series([0.0, 0.0])
+        qty_pct = round((d / t) * 100.0, 1)
+        sc = round(min(max_cap, 0.65 * min(max_cap, qty_pct) + 0.35 * succ), 1)
+        return pd.Series([qty_pct, sc])
+
+    df[["pct_dose", "score_m7_dose"]] = df.apply(calc_m7, axis=1)
+
+    # --- M8: TỔNG HỢP KPI TOÀN DIỆN ---
+    def calc_total_kpi(row):
+        components = [
+            (row["score_m2_hsba"], weights["w_m2_hsba"], row["target_hsba"], row["done_hsba"]),
+            (row["score_m3_rx_out"], weights["w_m3_rx_out"], row["target_rx_out"], row["done_rx_out"]),
+            (row["score_m4_rx_in"], weights["w_m4_rx_in"], row["target_rx_in"], row["done_rx_in"]),
+            (row["score_m5_counsel"], weights["w_m5_counsel"], row["target_counsel_out"], row["done_counsel_out"]),
+            (row["score_m6_consult"], weights["w_m6_consult"], row["target_consult"], row["done_consult"]),
+            (row["score_m7_dose"], weights["w_m7_dose"], row["target_dose"], row["done_dose"]),
+            (row["task_quality_pct"], weights["w_m1_task"], 1, 1),
+        ]
+        weighted_sum = 0.0
+        active_weight = 0.0
+        for sc, w, target_val, done_val in components:
+            if w <= 0:
+                continue
+            # Nếu bật chế độ công bằng: chỉ tiêu nào = 0 (không phân công) và thực hiện = 0 thì không tính vào mẫu số
+            if ignore_zero and target_val <= 0 and done_val <= 0:
+                continue
+            weighted_sum += sc * w
+            active_weight += w
+
+        if active_weight <= 0:
+            return 0.0
+        return round(weighted_sum / active_weight, 1)
+
+    df["kpi_total"] = df.apply(calc_total_kpi, axis=1)
+
+    def rank_kpi(val):
+        if val >= 95.0:
+            return "Xuất sắc (A+)"
+        elif val >= 90.0:
+            return "Tốt (A)"
+        elif val >= 80.0:
+            return "Đạt chuẩn (B)"
+        elif val > 0:
+            return "Cần cải thiện (C)"
+        return "Chưa nhập (—)"
+
+    df["kpi_rank"] = df["kpi_total"].apply(rank_kpi)
+    return df
+
+
+# ==============================================================================
+# XUẤT / NHẬP FILE EXCEL 8 SHEET ĐẦY ĐỦ
+# ==============================================================================
+def export_all_to_excel_bytes(df_calc):
+    output = io.BytesIO()
+    for eng in ["openpyxl", "xlsxwriter"]:
+        try:
+            with pd.ExcelWriter(output, engine=eng) as writer:
+                df_calc[
+                    [
+                        "id", "name", "department",
+                        "done_hsba", "target_hsba", "score_m2_hsba",
+                        "done_rx_out", "target_rx_out", "score_m3_rx_out",
+                        "done_rx_in", "target_rx_in", "score_m4_rx_in",
+                        "done_counsel_out", "target_counsel_out", "score_m5_counsel",
+                        "done_consult", "target_consult", "score_m6_consult",
+                        "done_dose", "target_dose", "score_m7_dose",
+                        "task_quality_pct", "kpi_total", "kpi_rank",
+                    ]
+                ].to_excel(writer, sheet_name="M8_TongHop_KPI", index=False)
+
+                df_calc[
+                    [
+                        "id", "name", "department", "assigned_task",
+                        "target_hsba", "target_rx_out", "target_rx_in",
+                        "target_counsel_out", "target_consult", "target_dose",
+                        "doctor_consensus_pct", "intervention_success_pct", "task_quality_pct",
+                    ]
+                ].to_excel(writer, sheet_name="M1_GiaoChiTieu", index=False)
+
+                df_calc[
+                    ["id", "name", "department", "target_hsba", "hsba_t2", "hsba_t3", "hsba_t4", "hsba_t5", "hsba_t6", "done_hsba", "score_m2_hsba"]
+                ].to_excel(writer, sheet_name="M2_BenhAn", index=False)
+
+                df_calc[
+                    ["id", "name", "department", "target_rx_out", "rx_out_t2", "rx_out_t3", "rx_out_t4", "rx_out_t5", "rx_out_t6", "done_rx_out", "score_m3_rx_out"]
+                ].to_excel(writer, sheet_name="M3_DuyetDon_NgoaiTru", index=False)
+
+                df_calc[
+                    ["id", "name", "department", "target_rx_in", "rx_in_t2", "rx_in_t3", "rx_in_t4", "rx_in_t5", "rx_in_t6", "done_rx_in", "score_m4_rx_in"]
+                ].to_excel(writer, sheet_name="M4_DuyetDon_NoiTru", index=False)
+
+                df_calc[
+                    ["id", "name", "department", "target_counsel_out", "coun_out_t2", "coun_out_t3", "coun_out_t4", "coun_out_t5", "coun_out_t6", "done_counsel_out", "score_m5_counsel"]
+                ].to_excel(writer, sheet_name="M5_TuVan_NgoaiTru", index=False)
+
+                df_calc[
+                    ["id", "name", "department", "target_consult", "consult_t2", "consult_t3", "consult_t4", "consult_t5", "consult_t6", "done_consult", "doctor_consensus_pct", "score_m6_consult"]
+                ].to_excel(writer, sheet_name="M6_HoiChan", index=False)
+
+                df_calc[
+                    ["id", "name", "department", "target_dose", "dose_t2", "dose_t3", "dose_t4", "dose_t5", "dose_t6", "done_dose", "intervention_success_pct", "score_m7_dose"]
+                ].to_excel(writer, sheet_name="M7_ChinhLieu", index=False)
+
+                pd.DataFrame(SHARED_STORE["records"]).to_excel(writer, sheet_name="DuLieuGoc_Full", index=False)
+            return output.getvalue()
+        except ImportError:
+            output = io.BytesIO()
+            continue
+    return None
+
+
+def import_records_from_excel(uploaded_file):
+    sheets = pd.read_excel(uploaded_file, sheet_name=None)
+    if "DuLieuGoc_Full" in sheets:
+        df_full = sheets["DuLieuGoc_Full"]
+        SHARED_STORE["records"] = df_full.to_dict(orient="records")
+        write_payload_to_disk_and_cloud(SHARED_STORE, sync_cloud=True)
+        return True
+
+    rec_map = {r["id"]: r for r in SHARED_STORE["records"]}
+    sheet_mappings = [
+        ("M1_GiaoChiTieu", ["name", "department", "assigned_task", "target_hsba", "target_rx_out", "target_rx_in", "target_counsel_out", "target_consult", "target_dose", "doctor_consensus_pct", "intervention_success_pct", "task_quality_pct"]),
+        ("M2_BenhAn", ["target_hsba", "hsba_t2", "hsba_t3", "hsba_t4", "hsba_t5", "hsba_t6"]),
+        ("M3_DuyetDon_NgoaiTru", ["target_rx_out", "rx_out_t2", "rx_out_t3", "rx_out_t4", "rx_out_t5", "rx_out_t6"]),
+        ("M4_DuyetDon_NoiTru", ["target_rx_in", "rx_in_t2", "rx_in_t3", "rx_in_t4", "rx_in_t5", "rx_in_t6"]),
+        ("M5_TuVan_NgoaiTru", ["target_counsel_out", "coun_out_t2", "coun_out_t3", "coun_out_t4", "coun_out_t5", "coun_out_t6"]),
+        ("M6_HoiChan", ["target_consult", "consult_t2", "consult_t3", "consult_t4", "consult_t5", "consult_t6", "doctor_consensus_pct"]),
+        ("M7_ChinhLieu", ["target_dose", "dose_t2", "dose_t3", "dose_t4", "dose_t5", "dose_t6", "intervention_success_pct"]),
+    ]
+    updated = False
+    for s_name, cols in sheet_mappings:
+        if s_name in sheets:
+            df_s = sheets[s_name]
+            for _, row in df_s.iterrows():
+                mid = str(row.get("id", "")).strip()
+                if mid in rec_map:
+                    for c in cols:
+                        if c in df_s.columns and pd.notna(row[c]):
+                            rec_map[mid][c] = row[c]
+                    updated = True
+    if updated:
+        write_payload_to_disk_and_cloud(SHARED_STORE, sync_cloud=True)
+    return updated
+
+
+# ==============================================================================
+# THANH BÊN (SIDEBAR): CẤU HÌNH TRỌNG SỐ, LỌC KHOA & SAO LƯU AN TOÀN
+# ==============================================================================
+cfg = SHARED_STORE["config"]
+gh_token, gh_repo, _ = get_github_credentials()
+
+with st.sidebar:
+    st.markdown("## 🏥 QUẢN TRỊ KPI DƯỢC LÂM SÀNG")
+    st.success(f"🟢 Tự động lưu: **{SHARED_STORE.get('updated_at', 'Vừa xong')}**")
+    if gh_token and gh_repo:
+        st.caption(f"☁️ Đồng bộ Cloud GitHub: **Đang bật ({gh_repo})**")
+    else:
+        st.caption("💾 Chế độ lưu: **SQLite + JSON Máy chủ**")
+
+    all_depts_in_use = sorted(list({r["department"] for r in SHARED_STORE["records"]}))
+    selected_depts = st.multiselect(
+        "🔍 Lọc theo Khoa phụ trách:",
+        options=all_depts_in_use,
+        default=all_depts_in_use,
+    )
+
+    st.markdown("### ⚖️ Cấu hình Chấm điểm & Trọng số")
+    ignore_zero_targets = st.checkbox(
+        "Khấu trừ chỉ tiêu = 0 (Chỉ tính điểm các phần có giao chỉ tiêu)",
+        value=bool(cfg.get("ignore_zero_targets", True)),
+        help="Giúp công bằng giữa Dược sĩ Nội trú (CT Ngoại trú = 0) và Dược sĩ Ngoại trú (CT Nội trú = 0).",
+    )
+    max_score_cap = st.number_input(
+        "Trần điểm tối đa từng phần (100 - 120):",
+        min_value=100.0,
+        max_value=120.0,
+        value=float(cfg.get("max_score_cap", 100.0)),
+        step=5.0,
+    )
+
+    w_cur = cfg["weights"]
+    w_m2_hsba = st.slider("M2: Hồ sơ Bệnh án (%)", 0, 50, int(w_cur["w_m2_hsba"]), 5)
+    w_m3_rx_out = st.slider("M3: Duyệt đơn Ngoại trú (%)", 0, 50, int(w_cur["w_m3_rx_out"]), 5)
+    w_m4_rx_in = st.slider("M4: Duyệt đơn Nội trú (%)", 0, 50, int(w_cur["w_m4_rx_in"]), 5)
+    w_m5_counsel = st.slider("M5: Tư vấn đơn Ngoại trú (%)", 0, 50, int(w_cur["w_m5_counsel"]), 5)
+    w_m6_consult = st.slider("M6: Hội chẩn Lâm sàng (%)", 0, 50, int(w_cur["w_m6_consult"]), 5)
+    w_m7_dose = st.slider("M7: Can thiệp Chỉnh liều (%)", 0, 50, int(w_cur["w_m7_dose"]), 5)
+    w_m1_task = st.slider("M1: Chất lượng Nhiệm vụ (%)", 0, 50, int(w_cur["w_m1_task"]), 5)
+
+    new_weights = {
+        "w_m2_hsba": w_m2_hsba,
+        "w_m3_rx_out": w_m3_rx_out,
+        "w_m4_rx_in": w_m4_rx_in,
+        "w_m5_counsel": w_m5_counsel,
+        "w_m6_consult": w_m6_consult,
+        "w_m7_dose": w_m7_dose,
+        "w_m1_task": w_m1_task,
+    }
+    if (
+        new_weights != cfg["weights"]
+        or ignore_zero_targets != cfg.get("ignore_zero_targets")
+        or max_score_cap != cfg.get("max_score_cap")
+    ):
+        cfg["weights"] = new_weights
+        cfg["ignore_zero_targets"] = ignore_zero_targets
+        cfg["max_score_cap"] = max_score_cap
+        write_payload_to_disk_and_cloud(SHARED_STORE, sync_cloud=True)
+
+    st.caption(f"Tổng trọng số cấu hình: **{sum(new_weights.values())}%**")
+
+
+# Tính toán dữ liệu tức thì
+df_all = compute_all_kpi_dataframes(SHARED_STORE["records"], SHARED_STORE["config"])
+df_filtered = df_all[df_all["department"].isin(selected_depts)].copy()
+filtered_ids = set(df_filtered["id"].tolist())
+
+with st.sidebar:
+    st.markdown("### 📊 Sao lưu & Nạp Dữ liệu")
+    excel_bytes = export_all_to_excel_bytes(df_all)
+    if excel_bytes is not None:
+        st.download_button(
+            label="📥 Xuất File Excel Đầy Đủ (.xlsx)",
+            data=excel_bytes,
+            file_name=f"KPI_To_DLS_{datetime.now().strftime('%Y%m%d')}.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            use_container_width=True,
+            type="primary",
+        )
+    st.download_button(
+        label="⬇️ Tải File Sao lưu Dự phòng (.json)",
+        data=json.dumps(SHARED_STORE, ensure_ascii=False, indent=2),
+        file_name=f"KPI_To_DLS_Backup_{datetime.now().strftime('%Y%m%d')}.json",
+        mime="application/json",
+        use_container_width=True,
+    )
+
+    uploaded_file = st.file_uploader("⬆️ Khôi phục từ Excel (.xlsx) / (.json)", type=["xlsx", "json"])
+    if uploaded_file is not None:
+        if st.button("✅ Xác nhận Nạp Dữ liệu", type="primary", use_container_width=True):
+            try:
+                if uploaded_file.name.lower().endswith(".xlsx"):
+                    import_records_from_excel(uploaded_file)
+                else:
+                    loaded = json.load(uploaded_file)
+                    if "records" in loaded:
+                        SHARED_STORE["records"] = loaded["records"]
+                        if "config" in loaded:
+                            SHARED_STORE["config"] = loaded["config"]
+                        write_payload_to_disk_and_cloud(SHARED_STORE, sync_cloud=True)
+                st.session_state.editor_ver += 1
+                st.success("Đã nạp và lưu dữ liệu thành công!")
+                st.rerun()
+            except Exception as e:
+                st.error(f"Lỗi nạp file: {e}")
+
+    with st.expander("🔒 Vùng Quản trị (Sang tuần mới / Reset)"):
+        st.warning("Chỉ Tổ trưởng sử dụng khi bắt đầu tuần làm việc mới.")
+        confirm_unlock = st.checkbox("Tôi xác nhận muốn thao tác xóa số liệu tuần cũ")
+        if st.button(
+            "🧹 Đặt số Thứ 2–Thứ 6 về 0 (Giữ nguyên Chỉ tiêu M1)",
+            disabled=not confirm_unlock,
+            use_container_width=True,
+        ):
+            day_prefixes = ["hsba_t", "rx_out_t", "rx_in_t", "coun_out_t", "consult_t", "dose_t"]
+            for r in SHARED_STORE["records"]:
+                for p in day_prefixes:
+                    for d_idx in ["2", "3", "4", "5", "6"]:
+                        r[f"{p}{d_idx}"] = 0
+            write_payload_to_disk_and_cloud(SHARED_STORE, sync_cloud=True)
+            st.session_state.editor_ver += 1
+            st.success("Đã đặt số thực hiện Thứ 2–Thứ 6 về 0 cho tuần mới!")
+            st.rerun()
+
+
+# ==============================================================================
+# BANNER TIÊU ĐỀ & 7 THẺ CHỈ SỐ NHANH
+# ==============================================================================
+st.markdown(
+    f"""
+    <div class="dls-header">
+        <div>
+            <div class="dls-header-title">🏥 HỆ THỐNG QUẢN TRỊ & CHẤM ĐIỂM KPI — TỔ DƯỢC LÂM SÀNG</div>
+            <div class="dls-header-sub">Nhập số trực tiếp trên bảng • Nhấn Enter hoặc chuyển ô là tự động lưu vĩnh viễn • Không tự xóa qua ngày</div>
+        </div>
+        <div class="dls-badge">👥 {len(SHARED_STORE["records"])} Dược sĩ Lâm sàng</div>
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
+
+c1, c2, c3, c4, c5, c6, c7 = st.columns(7)
+with c1:
+    st.metric(
+        "📁 M2: Bệnh án",
+        f"{int(df_filtered['done_hsba'].sum()):,}/{int(df_filtered['target_hsba'].sum()):,}",
+        f"TB: {df_filtered['score_m2_hsba'].mean():.1f} đ",
+    )
+with c2:
+    st.metric(
+        "💊 M3: Đơn Ngoại",
+        f"{int(df_filtered['done_rx_out'].sum()):,}/{int(df_filtered['target_rx_out'].sum()):,}",
+        f"TB: {df_filtered['score_m3_rx_out'].mean():.1f} đ",
+    )
+with c3:
+    st.metric(
+        "🏥 M4: Đơn Nội",
+        f"{int(df_filtered['done_rx_in'].sum()):,}/{int(df_filtered['target_rx_in'].sum()):,}",
+        f"TB: {df_filtered['score_m4_rx_in'].mean():.1f} đ",
+    )
+with c4:
+    st.metric(
+        "🗣️ M5: TV Ngoại",
+        f"{int(df_filtered['done_counsel_out'].sum()):,}/{int(df_filtered['target_counsel_out'].sum()):,}",
+        f"TB: {df_filtered['score_m5_counsel'].mean():.1f} đ",
+    )
+with c5:
+    st.metric(
+        "🩺 M6: Hội chẩn",
+        f"{int(df_filtered['done_consult'].sum()):,}/{int(df_filtered['target_consult'].sum()):,}",
+        f"TB: {df_filtered['score_m6_consult'].mean():.1f} đ",
+    )
+with c6:
+    st.metric(
+        "⚖️ M7: Chỉnh liều",
+        f"{int(df_filtered['done_dose'].sum()):,}/{int(df_filtered['target_dose'].sum()):,}",
+        f"TB: {df_filtered['score_m7_dose'].mean():.1f} đ",
+    )
+with c7:
+    st.metric(
+        "🏆 M8: KPI Tổ",
+        f"{df_filtered['kpi_total'].mean():.1f} đ",
+        f"{int((df_filtered['kpi_rank'] == 'Xuất sắc (A+)').sum())}/{len(df_filtered)} đạt A+",
+    )
+
+
+# ==============================================================================
+# THANH 8 MODULE CHỨC NĂNG
+# ==============================================================================
+tab_m1, tab_m2, tab_m3, tab_m4, tab_m5, tab_m6, tab_m7, tab_m8 = st.tabs(
+    [
+        "🎯 M1: Giao Chỉ tiêu",
+        "📁 M2: Bệnh án",
+        "💊 M3: Duyệt Đơn Ngoại",
+        "🏥 M4: Duyệt Đơn Nội",
+        "🗣️ M5: Tư vấn Ngoại trú",
+        "🩺 M6: Hội chẩn",
+        "⚖️ M7: Chỉnh liều",
+        "🏆 M8: Tổng hợp KPI",
+    ]
+)
+
+# ------------------------------------------------------------------------------
+# MODULE 1: GIAO CÁC CHỈ TIÊU VÀ CHỈ SỐ TỪNG PHẦN CHO TỪNG NGƯỜI
+# ------------------------------------------------------------------------------
+with tab_m1:
+    st.markdown(
+        '<div class="mod-title">🎯 M1: Giao Chỉ tiêu Tuần & Chỉ số Chất lượng Từng phần cho Từng Dược sĩ</div>',
+        unsafe_allow_html=True,
+    )
+    st.markdown(
+        '<div class="mod-desc">Nhập hoặc điều chỉnh trực tiếp chỉ tiêu của từng người (nếu phần nào không phụ trách thì điền 0). Gõ số xong nhấn Enter là hệ thống tự lưu và cập nhật ngay sang các Module M2–M8.</div>',
+        unsafe_allow_html=True,
+    )
+
+    m1_cols = [
+        "id", "name", "department", "assigned_task",
+        "target_hsba", "target_rx_out", "target_rx_in",
+        "target_counsel_out", "target_consult", "target_dose",
+        "doctor_consensus_pct", "intervention_success_pct", "task_quality_pct",
+    ]
+    df_m1_view = df_filtered[m1_cols].copy()
+    st.session_state["_ids_m1"] = df_m1_view["id"].tolist()
+
+    st.data_editor(
+        df_m1_view,
+        column_config={
+            "id": st.column_config.TextColumn("Mã", disabled=True, width="small"),
+            "name": st.column_config.TextColumn("Họ và tên Dược sĩ", width="medium"),
+            "department": st.column_config.SelectboxColumn(
+                "Khoa Lâm sàng Phụ trách", options=CLINICAL_DEPARTMENTS, width="medium"
+            ),
+            "assigned_task": st.column_config.TextColumn("Nhiệm vụ chuyên môn giao", width="large"),
+            "target_hsba": st.column_config.NumberColumn("CT Bệnh án", min_value=0, max_value=2000, step=5),
+            "target_rx_out": st.column_config.NumberColumn("CT Đơn Ngoại", min_value=0, max_value=5000, step=10),
+            "target_rx_in": st.column_config.NumberColumn("CT Đơn Nội", min_value=0, max_value=5000, step=10),
+            "target_counsel_out": st.column_config.NumberColumn("CT Tư vấn Ngoại", min_value=0, max_value=5000, step=5),
+            "target_consult": st.column_config.NumberColumn("CT Hội chẩn", min_value=0, max_value=500, step=1),
+            "target_dose": st.column_config.NumberColumn("CT Chỉnh liều", min_value=0, max_value=500, step=1),
+            "doctor_consensus_pct": st.column_config.NumberColumn(
+                "CS Đồng thuận BS (%)", min_value=0.0, max_value=100.0, step=1.0, format="%.1f%%"
+            ),
+            "intervention_success_pct": st.column_config.NumberColumn(
+                "CS Chỉnh liều Đạt (%)", min_value=0.0, max_value=100.0, step=1.0, format="%.1f%%"
+            ),
+            "task_quality_pct": st.column_config.NumberColumn(
+                "Điểm Nhiệm vụ (%)", min_value=0.0, max_value=120.0, step=1.0, format="%.1f%%"
+            ),
+        },
+        use_container_width=True,
+        hide_index=True,
+        num_rows="fixed",
+        key=f"ed_m1_{st.session_state.editor_ver}",
+        on_change=make_atomic_callback(
+            "ed_m1",
+            "_ids_m1",
+            int_cols=["target_hsba", "target_rx_out", "target_rx_in", "target_counsel_out", "target_consult", "target_dose"],
+            float_cols=["doctor_consensus_pct", "intervention_success_pct", "task_quality_pct"],
+        ),
+    )
+
+    st.markdown(
+        f"""<div class="excel-summary-bar">
+        📊 <b>Tổng Chỉ tiêu Tuần toàn Tổ:</b>
+        Bệnh án: <b>{int(df_m1_view['target_hsba'].sum()):,}</b> &nbsp;|&nbsp;
+        Đơn Ngoại trú: <b>{int(df_m1_view['target_rx_out'].sum()):,}</b> &nbsp;|&nbsp;
+        Đơn Nội trú: <b>{int(df_m1_view['target_rx_in'].sum()):,}</b> &nbsp;|&nbsp;
+        Tư vấn Ngoại trú: <b>{int(df_m1_view['target_counsel_out'].sum()):,}</b> &nbsp;|&nbsp;
+        Hội chẩn: <b>{int(df_m1_view['target_consult'].sum()):,}</b> &nbsp;|&nbsp;
+        Chỉnh liều: <b>{int(df_m1_view['target_dose'].sum()):,}</b>
+        </div>""",
+        unsafe_allow_html=True,
+    )
+
+# ------------------------------------------------------------------------------
+# MODULE 2: KIỂM TRA HỒ SƠ BỆNH ÁN (THỨ 2 – THỨ 6)
+# ------------------------------------------------------------------------------
+with tab_m2:
+    st.markdown(
+        '<div class="mod-title">📁 M2: Kiểm tra Hồ sơ Bệnh án Hằng ngày (Thứ 2 – Thứ 6)</div>',
+        unsafe_allow_html=True,
+    )
+    st.markdown(
+        '<div class="mod-desc">Nhập số lượng hồ sơ bệnh án rà soát từng ngày. Gõ số và nhấn Enter là tự động lưu.</div>',
+        unsafe_allow_html=True,
+    )
+
+    m2_cols = [
+        "id", "name", "department", "target_hsba",
+        "hsba_t2", "hsba_t3", "hsba_t4", "hsba_t5", "hsba_t6",
+        "done_hsba", "diff_hsba", "pct_hsba", "score_m2_hsba",
+    ]
+    df_m2_view = df_filtered[m2_cols].copy()
+    st.session_state["_ids_m2"] = df_m2_view["id"].tolist()
+
+    st.data_editor(
+        df_m2_view,
+        column_config={
+            "id": st.column_config.TextColumn("Mã", disabled=True, width="small"),
+            "name": st.column_config.TextColumn("Họ và tên Dược sĩ", disabled=True, width="medium"),
+            "department": st.column_config.TextColumn("Khoa phụ trách", disabled=True, width="medium"),
+            "target_hsba": st.column_config.NumberColumn("Chỉ tiêu Tuần", min_value=0, max_value=2000, step=5),
+            "hsba_t2": st.column_config.NumberColumn("Thứ 2", min_value=0, max_value=500, step=1),
+            "hsba_t3": st.column_config.NumberColumn("Thứ 3", min_value=0, max_value=500, step=1),
+            "hsba_t4": st.column_config.NumberColumn("Thứ 4", min_value=0, max_value=500, step=1),
+            "hsba_t5": st.column_config.NumberColumn("Thứ 5", min_value=0, max_value=500, step=1),
+            "hsba_t6": st.column_config.NumberColumn("Thứ 6", min_value=0, max_value=500, step=1),
+            "done_hsba": st.column_config.NumberColumn("Tổng Tuần", disabled=True),
+            "diff_hsba": st.column_config.NumberColumn("Lệch (+/-)", disabled=True),
+            "pct_hsba": st.column_config.NumberColumn("Đạt (%)", disabled=True, format="%.1f%%"),
+            "score_m2_hsba": st.column_config.ProgressColumn(
+                "Điểm M2", min_value=0, max_value=float(cfg["max_score_cap"]), format="%.1f đ"
+            ),
+        },
+        use_container_width=True,
+        hide_index=True,
+        key=f"ed_m2_{st.session_state.editor_ver}",
+        on_change=make_atomic_callback(
+            "ed_m2",
+            "_ids_m2",
+            int_cols=["target_hsba", "hsba_t2", "hsba_t3", "hsba_t4", "hsba_t5", "hsba_t6"],
+        ),
+    )
+
+    st.markdown(
+        f"""<div class="excel-summary-bar">
+        📊 <b>Tổng cộng M2 (Bệnh án):</b> Thực hiện: <b>{int(df_m2_view['done_hsba'].sum()):,}/{int(df_m2_view['target_hsba'].sum()):,}</b> &nbsp;|&nbsp;
+        T2: <b>{int(df_m2_view['hsba_t2'].sum()):,}</b> • T3: <b>{int(df_m2_view['hsba_t3'].sum()):,}</b> •
+        T4: <b>{int(df_m2_view['hsba_t4'].sum()):,}</b> • T5: <b>{int(df_m2_view['hsba_t5'].sum()):,}</b> •
+        T6: <b>{int(df_m2_view['hsba_t6'].sum()):,}</b> &nbsp;|&nbsp;
+        Điểm TB M2: <b>{df_m2_view['score_m2_hsba'].mean():.1f} đ</b>
+        </div>""",
+        unsafe_allow_html=True,
+    )
+
+# ------------------------------------------------------------------------------
+# MODULE 3: DUYỆT ĐƠN THUỐC NGOẠI TRÚ RIÊNG (THỨ 2 – THỨ 6)
+# ------------------------------------------------------------------------------
+with tab_m3:
+    st.markdown(
+        '<div class="mod-title">💊 M3: Duyệt Đơn Thuốc Ngoại trú Hằng ngày (Thứ 2 – Thứ 6)</div>',
+        unsafe_allow_html=True,
+    )
+    st.markdown(
+        '<div class="mod-desc">Module độc lập chuyên theo dõi số đơn thuốc ngoại trú được rà soát/duyệt từng ngày.</div>',
+        unsafe_allow_html=True,
+    )
+
+    m3_cols = [
+        "id", "name", "department", "target_rx_out",
+        "rx_out_t2", "rx_out_t3", "rx_out_t4", "rx_out_t5", "rx_out_t6",
+        "done_rx_out", "diff_rx_out", "pct_rx_out", "score_m3_rx_out",
+    ]
+    df_m3_view = df_filtered[m3_cols].copy()
+    st.session_state["_ids_m3"] = df_m3_view["id"].tolist()
+
+    st.data_editor(
+        df_m3_view,
+        column_config={
+            "id": st.column_config.TextColumn("Mã", disabled=True, width="small"),
+            "name": st.column_config.TextColumn("Họ và tên Dược sĩ", disabled=True, width="medium"),
+            "department": st.column_config.TextColumn("Khoa phụ trách", disabled=True, width="medium"),
+            "target_rx_out": st.column_config.NumberColumn("CT Đơn Ngoại", min_value=0, max_value=5000, step=10),
+            "rx_out_t2": st.column_config.NumberColumn("Thứ 2", min_value=0, max_value=1500, step=1),
+            "rx_out_t3": st.column_config.NumberColumn("Thứ 3", min_value=0, max_value=1500, step=1),
+            "rx_out_t4": st.column_config.NumberColumn("Thứ 4", min_value=0, max_value=1500, step=1),
+            "rx_out_t5": st.column_config.NumberColumn("Thứ 5", min_value=0, max_value=1500, step=1),
+            "rx_out_t6": st.column_config.NumberColumn("Thứ 6", min_value=0, max_value=1500, step=1),
+            "done_rx_out": st.column_config.NumberColumn("Tổng Đơn Ngoại", disabled=True),
+            "diff_rx_out": st.column_config.NumberColumn("Lệch (+/-)", disabled=True),
+            "pct_rx_out": st.column_config.NumberColumn("Đạt (%)", disabled=True, format="%.1f%%"),
+            "score_m3_rx_out": st.column_config.ProgressColumn(
+                "Điểm M3", min_value=0, max_value=float(cfg["max_score_cap"]), format="%.1f đ"
+            ),
+        },
+        use_container_width=True,
+        hide_index=True,
+        key=f"ed_m3_{st.session_state.editor_ver}",
+        on_change=make_atomic_callback(
+            "ed_m3",
+            "_ids_m3",
+            int_cols=["target_rx_out", "rx_out_t2", "rx_out_t3", "rx_out_t4", "rx_out_t5", "rx_out_t6"],
+        ),
+    )
+
+    st.markdown(
+        f"""<div class="excel-summary-bar">
+        📊 <b>Tổng cộng M3 (Duyệt Đơn Ngoại trú):</b> Thực hiện: <b>{int(df_m3_view['done_rx_out'].sum()):,}/{int(df_m3_view['target_rx_out'].sum()):,}</b> &nbsp;|&nbsp;
+        T2: <b>{int(df_m3_view['rx_out_t2'].sum()):,}</b> • T3: <b>{int(df_m3_view['rx_out_t3'].sum()):,}</b> •
+        T4: <b>{int(df_m3_view['rx_out_t4'].sum()):,}</b> • T5: <b>{int(df_m3_view['rx_out_t5'].sum()):,}</b> •
+        T6: <b>{int(df_m3_view['rx_out_t6'].sum()):,}</b> &nbsp;|&nbsp;
+        Điểm TB M3: <b>{df_m3_view['score_m3_rx_out'].mean():.1f} đ</b>
+        </div>""",
+        unsafe_allow_html=True,
+    )
+
+# ------------------------------------------------------------------------------
+# MODULE 4: DUYỆT ĐƠN THUỐC NỘI TRÚ RIÊNG (THỨ 2 – THỨ 6)
+# ------------------------------------------------------------------------------
+with tab_m4:
+    st.markdown(
+        '<div class="mod-title">🏥 M4: Duyệt Đơn Thuốc / Phiếu Điều trị Nội trú Hằng ngày (Thứ 2 – Thứ 6)</div>',
+        unsafe_allow_html=True,
+    )
+    st.markdown(
+        '<div class="mod-desc">Module độc lập chuyên theo dõi số đơn thuốc / y lệnh nội trú được rà soát hằng ngày.</div>',
+        unsafe_allow_html=True,
+    )
+
+    m4_cols = [
+        "id", "name", "department", "target_rx_in",
+        "rx_in_t2", "rx_in_t3", "rx_in_t4", "rx_in_t5", "rx_in_t6",
+        "done_rx_in", "diff_rx_in", "pct_rx_in", "score_m4_rx_in",
+    ]
+    df_m4_view = df_filtered[m4_cols].copy()
+    st.session_state["_ids_m4"] = df_m4_view["id"].tolist()
+
+    st.data_editor(
+        df_m4_view,
+        column_config={
+            "id": st.column_config.TextColumn("Mã", disabled=True, width="small"),
+            "name": st.column_config.TextColumn("Họ và tên Dược sĩ", disabled=True, width="medium"),
+            "department": st.column_config.TextColumn("Khoa phụ trách", disabled=True, width="medium"),
+            "target_rx_in": st.column_config.NumberColumn("CT Đơn Nội", min_value=0, max_value=5000, step=10),
+            "rx_in_t2": st.column_config.NumberColumn("Thứ 2", min_value=0, max_value=1500, step=1),
+            "rx_in_t3": st.column_config.NumberColumn("Thứ 3", min_value=0, max_value=1500, step=1),
+            "rx_in_t4": st.column_config.NumberColumn("Thứ 4", min_value=0, max_value=1500, step=1),
+            "rx_in_t5": st.column_config.NumberColumn("Thứ 5", min_value=0, max_value=1500, step=1),
+            "rx_in_t6": st.column_config.NumberColumn("Thứ 6", min_value=0, max_value=1500, step=1),
+            "done_rx_in": st.column_config.NumberColumn("Tổng Đơn Nội", disabled=True),
+            "diff_rx_in": st.column_config.NumberColumn("Lệch (+/-)", disabled=True),
+            "pct_rx_in": st.column_config.NumberColumn("Đạt (%)", disabled=True, format="%.1f%%"),
+            "score_m4_rx_in": st.column_config.ProgressColumn(
+                "Điểm M4", min_value=0, max_value=float(cfg["max_score_cap"]), format="%.1f đ"
+            ),
+        },
+        use_container_width=True,
+        hide_index=True,
+        key=f"ed_m4_{st.session_state.editor_ver}",
+        on_change=make_atomic_callback(
+            "ed_m4",
+            "_ids_m4",
+            int_cols=["target_rx_in", "rx_in_t2", "rx_in_t3", "rx_in_t4", "rx_in_t5", "rx_in_t6"],
+        ),
+    )
+
+    st.markdown(
+        f"""<div class="excel-summary-bar">
+        📊 <b>Tổng cộng M4 (Duyệt Đơn Nội trú):</b> Thực hiện: <b>{int(df_m4_view['done_rx_in'].sum()):,}/{int(df_m4_view['target_rx_in'].sum()):,}</b> &nbsp;|&nbsp;
+        T2: <b>{int(df_m4_view['rx_in_t2'].sum()):,}</b> • T3: <b>{int(df_m4_view['rx_in_t3'].sum()):,}</b> •
+        T4: <b>{int(df_m4_view['rx_in_t4'].sum()):,}</b> • T5: <b>{int(df_m4_view['rx_in_t5'].sum()):,}</b> •
+        T6: <b>{int(df_m4_view['rx_in_t6'].sum()):,}</b> &nbsp;|&nbsp;
+        Điểm TB M4: <b>{df_m4_view['score_m4_rx_in'].mean():.1f} đ</b>
+        </div>""",
+        unsafe_allow_html=True,
+    )
+
+# ------------------------------------------------------------------------------
+# MODULE 5: TƯ VẤN ĐƠN THUỐC NGOẠI TRÚ THEO HẰNG NGÀY (THỨ 2 – THỨ 6)
+# ------------------------------------------------------------------------------
+with tab_m5:
+    st.markdown(
+        '<div class="mod-title">🗣️ M5: Tư vấn Đơn Thuốc Ngoại trú Theo Hằng ngày (Thứ 2 – Thứ 6)</div>',
+        unsafe_allow_html=True,
+    )
+    st.markdown(
+        '<div class="mod-desc">Nhập trực tiếp số đơn thuốc ngoại trú đã tư vấn từng ngày (Thứ 2 đến Thứ 6); hệ thống tự tính Tổng đơn tư vấn tuần, Tỷ lệ đạt Chỉ tiêu và Tỷ lệ % so với Đơn ngoại trú đã duyệt.</div>',
+        unsafe_allow_html=True,
+    )
+
+    m5_cols = [
+        "id", "name", "department", "target_counsel_out",
+        "coun_out_t2", "coun_out_t3", "coun_out_t4", "coun_out_t5", "coun_out_t6",
+        "done_counsel_out", "done_rx_out", "rate_counsel_vs_rx_out", "pct_counsel_out", "score_m5_counsel",
+    ]
+    df_m5_view = df_filtered[m5_cols].copy()
+    st.session_state["_ids_m5"] = df_m5_view["id"].tolist()
+
+    st.data_editor(
+        df_m5_view,
+        column_config={
+            "id": st.column_config.TextColumn("Mã", disabled=True, width="small"),
+            "name": st.column_config.TextColumn("Họ và tên Dược sĩ", disabled=True, width="medium"),
+            "department": st.column_config.TextColumn("Khoa phụ trách", disabled=True, width="medium"),
+            "target_counsel_out": st.column_config.NumberColumn("CT Tư vấn Tuần", min_value=0, max_value=5000, step=5),
+            "coun_out_t2": st.column_config.NumberColumn("TV Thứ 2", min_value=0, max_value=1500, step=1),
+            "coun_out_t3": st.column_config.NumberColumn("TV Thứ 3", min_value=0, max_value=1500, step=1),
+            "coun_out_t4": st.column_config.NumberColumn("TV Thứ 4", min_value=0, max_value=1500, step=1),
+            "coun_out_t5": st.column_config.NumberColumn("TV Thứ 5", min_value=0, max_value=1500, step=1),
+            "coun_out_t6": st.column_config.NumberColumn("TV Thứ 6", min_value=0, max_value=1500, step=1),
+            "done_counsel_out": st.column_config.NumberColumn("Tổng TV Tuần", disabled=True),
+            "done_rx_out": st.column_config.NumberColumn("Đơn Ngoại (M3)", disabled=True),
+            "rate_counsel_vs_rx_out": st.column_config.NumberColumn("% TV/Đơn Ngoại", disabled=True, format="%.1f%%"),
+            "pct_counsel_out": st.column_config.NumberColumn("Đạt CT (%)", disabled=True, format="%.1f%%"),
+            "score_m5_counsel": st.column_config.ProgressColumn(
+                "Điểm M5", min_value=0, max_value=float(cfg["max_score_cap"]), format="%.1f đ"
+            ),
+        },
+        use_container_width=True,
+        hide_index=True,
+        key=f"ed_m5_{st.session_state.editor_ver}",
+        on_change=make_atomic_callback(
+            "ed_m5",
+            "_ids_m5",
+            int_cols=["target_counsel_out", "coun_out_t2", "coun_out_t3", "coun_out_t4", "coun_out_t5", "coun_out_t6"],
+        ),
+    )
+
+    st.markdown(
+        f"""<div class="excel-summary-bar">
+        📊 <b>Tổng cộng M5 (Tư vấn Đơn Ngoại trú):</b> Thực hiện: <b>{int(df_m5_view['done_counsel_out'].sum()):,}/{int(df_m5_view['target_counsel_out'].sum()):,}</b> &nbsp;|&nbsp;
+        T2: <b>{int(df_m5_view['coun_out_t2'].sum()):,}</b> • T3: <b>{int(df_m5_view['coun_out_t3'].sum()):,}</b> •
+        T4: <b>{int(df_m5_view['coun_out_t4'].sum()):,}</b> • T5: <b>{int(df_m5_view['coun_out_t5'].sum()):,}</b> •
+        T6: <b>{int(df_m5_view['coun_out_t6'].sum()):,}</b> &nbsp;|&nbsp;
+        Điểm TB M5: <b>{df_m5_view['score_m5_counsel'].mean():.1f} đ</b>
+        </div>""",
+        unsafe_allow_html=True,
+    )
+
+# ------------------------------------------------------------------------------
+# MODULE 6: HỘI CHẨN LÂM SÀNG (THỨ 2 – THỨ 6)
+# ------------------------------------------------------------------------------
+with tab_m6:
+    st.markdown(
+        '<div class="mod-title">🩺 M6: Hội chẩn Lâm sàng Hằng ngày (Thứ 2 – Thứ 6)</div>',
+        unsafe_allow_html=True,
+    )
+    st.markdown(
+        '<div class="mod-desc">Điểm M6 = 65% × (% Hoàn thành số ca hội chẩn) + 35% × (% Bác sĩ đồng thuận).</div>',
+        unsafe_allow_html=True,
+    )
+
+    m6_cols = [
+        "id", "name", "department", "target_consult",
+        "consult_t2", "consult_t3", "consult_t4", "consult_t5", "consult_t6",
+        "done_consult", "pct_consult", "doctor_consensus_pct", "score_m6_consult",
+    ]
+    df_m6_view = df_filtered[m6_cols].copy()
+    st.session_state["_ids_m6"] = df_m6_view["id"].tolist()
+
+    st.data_editor(
+        df_m6_view,
+        column_config={
+            "id": st.column_config.TextColumn("Mã", disabled=True, width="small"),
+            "name": st.column_config.TextColumn("Họ và tên Dược sĩ", disabled=True, width="medium"),
+            "department": st.column_config.TextColumn("Khoa phụ trách", disabled=True, width="medium"),
+            "target_consult": st.column_config.NumberColumn("CT Hội chẩn", min_value=0, max_value=500, step=1),
+            "consult_t2": st.column_config.NumberColumn("Thứ 2", min_value=0, max_value=100, step=1),
+            "consult_t3": st.column_config.NumberColumn("Thứ 3", min_value=0, max_value=100, step=1),
+            "consult_t4": st.column_config.NumberColumn("Thứ 4", min_value=0, max_value=100, step=1),
+            "consult_t5": st.column_config.NumberColumn("Thứ 5", min_value=0, max_value=100, step=1),
+            "consult_t6": st.column_config.NumberColumn("Thứ 6", min_value=0, max_value=100, step=1),
+            "done_consult": st.column_config.NumberColumn("Tổng Ca", disabled=True),
+            "pct_consult": st.column_config.NumberColumn("Đạt SL (%)", disabled=True, format="%.1f%%"),
+            "doctor_consensus_pct": st.column_config.NumberColumn(
+                "BS Đồng thuận (%)", min_value=0.0, max_value=100.0, step=0.5, format="%.1f%%"
+            ),
+            "score_m6_consult": st.column_config.ProgressColumn(
+                "Điểm M6", min_value=0, max_value=float(cfg["max_score_cap"]), format="%.1f đ"
+            ),
+        },
+        use_container_width=True,
+        hide_index=True,
+        key=f"ed_m6_{st.session_state.editor_ver}",
+        on_change=make_atomic_callback(
+            "ed_m6",
+            "_ids_m6",
+            int_cols=["target_consult", "consult_t2", "consult_t3", "consult_t4", "consult_t5", "consult_t6"],
+            float_cols=["doctor_consensus_pct"],
+        ),
+    )
+
+    st.markdown(
+        f"""<div class="excel-summary-bar">
+        📊 <b>Tổng cộng M6 (Hội chẩn):</b> Thực hiện: <b>{int(df_m6_view['done_consult'].sum()):,}/{int(df_m6_view['target_consult'].sum()):,}</b> &nbsp;|&nbsp;
+        BS đồng thuận TB: <b>{df_m6_view['doctor_consensus_pct'].mean():.1f}%</b> &nbsp;|&nbsp;
+        Điểm TB M6: <b>{df_m6_view['score_m6_consult'].mean():.1f} đ</b>
+        </div>""",
+        unsafe_allow_html=True,
+    )
+
+# ------------------------------------------------------------------------------
+# MODULE 7: CAN THIỆP & HIỆU CHỈNH LIỀU (THỨ 2 – THỨ 6)
+# ------------------------------------------------------------------------------
+with tab_m7:
+    st.markdown(
+        '<div class="mod-title">⚖️ M7: Can thiệp & Hiệu chỉnh liều Hằng ngày (Thứ 2 – Thứ 6)</div>',
+        unsafe_allow_html=True,
+    )
+    st.markdown(
+        '<div class="mod-desc">Điểm M7 = 65% × (% Hoàn thành số ca chỉnh liều) + 35% × (% Can thiệp thành công).</div>',
+        unsafe_allow_html=True,
+    )
+
+    m7_cols = [
+        "id", "name", "department", "target_dose",
+        "dose_t2", "dose_t3", "dose_t4", "dose_t5", "dose_t6",
+        "done_dose", "pct_dose", "intervention_success_pct", "score_m7_dose",
+    ]
+    df_m7_view = df_filtered[m7_cols].copy()
+    st.session_state["_ids_m7"] = df_m7_view["id"].tolist()
+
+    st.data_editor(
+        df_m7_view,
+        column_config={
+            "id": st.column_config.TextColumn("Mã", disabled=True, width="small"),
+            "name": st.column_config.TextColumn("Họ và tên Dược sĩ", disabled=True, width="medium"),
+            "department": st.column_config.TextColumn("Khoa phụ trách", disabled=True, width="medium"),
+            "target_dose": st.column_config.NumberColumn("CT Chỉnh liều", min_value=0, max_value=500, step=1),
+            "dose_t2": st.column_config.NumberColumn("Thứ 2", min_value=0, max_value=100, step=1),
+            "dose_t3": st.column_config.NumberColumn("Thứ 3", min_value=0, max_value=100, step=1),
+            "dose_t4": st.column_config.NumberColumn("Thứ 4", min_value=0, max_value=100, step=1),
+            "dose_t5": st.column_config.NumberColumn("Thứ 5", min_value=0, max_value=100, step=1),
+            "dose_t6": st.column_config.NumberColumn("Thứ 6", min_value=0, max_value=100, step=1),
+            "done_dose": st.column_config.NumberColumn("Tổng Ca", disabled=True),
+            "pct_dose": st.column_config.NumberColumn("Đạt SL (%)", disabled=True, format="%.1f%%"),
+            "intervention_success_pct": st.column_config.NumberColumn(
+                "Thành công (%)", min_value=0.0, max_value=100.0, step=0.5, format="%.1f%%"
+            ),
+            "score_m7_dose": st.column_config.ProgressColumn(
+                "Điểm M7", min_value=0, max_value=float(cfg["max_score_cap"]), format="%.1f đ"
+            ),
+        },
+        use_container_width=True,
+        hide_index=True,
+        key=f"ed_m7_{st.session_state.editor_ver}",
+        on_change=make_atomic_callback(
+            "ed_m7",
+            "_ids_m7",
+            int_cols=["target_dose", "dose_t2", "dose_t3", "dose_t4", "dose_t5", "dose_t6"],
+            float_cols=["intervention_success_pct"],
+        ),
+    )
+
+    st.markdown(
+        f"""<div class="excel-summary-bar">
+        📊 <b>Tổng cộng M7 (Chỉnh liều):</b> Thực hiện: <b>{int(df_m7_view['done_dose'].sum()):,}/{int(df_m7_view['target_dose'].sum()):,}</b> &nbsp;|&nbsp;
+        Tỷ lệ thành công TB: <b>{df_m7_view['intervention_success_pct'].mean():.1f}%</b> &nbsp;|&nbsp;
+        Điểm TB M7: <b>{df_m7_view['score_m7_dose'].mean():.1f} đ</b>
+        </div>""",
+        unsafe_allow_html=True,
+    )
+
+# ------------------------------------------------------------------------------
+# MODULE 8: TỔNG HỢP KPI TOÀN DIỆN & XẾP LOẠI
+# ------------------------------------------------------------------------------
+with tab_m8:
+    st.markdown(
+        '<div class="mod-title">🏆 M8: Bảng Tổng hợp Điểm Tất cả Chỉ tiêu & Xếp loại KPI Cá nhân</div>',
+        unsafe_allow_html=True,
+    )
+    w = cfg["weights"]
+    st.markdown(
+        f'<div class="mod-desc">Trọng số: M2 (Bệnh án): <b>{w["w_m2_hsba"]}%</b> • M3 (Đơn Ngoại): <b>{w["w_m3_rx_out"]}%</b> • '
+        f'M4 (Đơn Nội): <b>{w["w_m4_rx_in"]}%</b> • M5 (TV Ngoại): <b>{w["w_m5_counsel"]}%</b> • '
+        f'M6 (Hội chẩn): <b>{w["w_m6_consult"]}%</b> • M7 (Chỉnh liều): <b>{w["w_m7_dose"]}%</b> • '
+        f'M1 (Nhiệm vụ): <b>{w["w_m1_task"]}%</b></div>',
+        unsafe_allow_html=True,
+    )
+
+    df_kpi_sorted = df_filtered.sort_values(by="kpi_total", ascending=False).copy()
+
+    st.dataframe(
+        df_kpi_sorted[
+            [
+                "id", "name", "department",
+                "done_hsba", "score_m2_hsba",
+                "done_rx_out", "score_m3_rx_out",
+                "done_rx_in", "score_m4_rx_in",
+                "done_counsel_out", "score_m5_counsel",
+                "done_consult", "score_m6_consult",
+                "done_dose", "score_m7_dose",
+                "task_quality_pct", "kpi_total", "kpi_rank",
+            ]
+        ],
+        column_config={
+            "id": "Mã",
+            "name": "Họ và tên Dược sĩ",
+            "department": "Khoa phụ trách",
+            "done_hsba": st.column_config.NumberColumn("Số BA"),
+            "score_m2_hsba": st.column_config.NumberColumn("Điểm M2", format="%.1f"),
+            "done_rx_out": st.column_config.NumberColumn("Đơn Ngoại"),
+            "score_m3_rx_out": st.column_config.NumberColumn("Điểm M3", format="%.1f"),
+            "done_rx_in": st.column_config.NumberColumn("Đơn Nội"),
+            "score_m4_rx_in": st.column_config.NumberColumn("Điểm M4", format="%.1f"),
+            "done_counsel_out": st.column_config.NumberColumn("TV Ngoại"),
+            "score_m5_counsel": st.column_config.NumberColumn("Điểm M5", format="%.1f"),
+            "done_consult": st.column_config.NumberColumn("Ca HC"),
+            "score_m6_consult": st.column_config.NumberColumn("Điểm M6", format="%.1f"),
+            "done_dose": st.column_config.NumberColumn("Ca CL"),
+            "score_m7_dose": st.column_config.NumberColumn("Điểm M7", format="%.1f"),
+            "task_quality_pct": st.column_config.NumberColumn("Điểm M1", format="%.1f"),
+            "kpi_total": st.column_config.ProgressColumn(
+                "TỔNG KPI", min_value=0, max_value=float(cfg["max_score_cap"]), format="%.1f đ"
+            ),
+            "kpi_rank": "Xếp loại",
+        },
+        use_container_width=True,
+        hide_index=True,
+    )
+
+    ch1, ch2 = st.columns(2)
+    with ch1:
+        st.markdown('<div class="mod-title">📈 Biểu đồ Tổng Điểm KPI theo Dược sĩ</div>', unsafe_allow_html=True)
+        chart_df = df_kpi_sorted.set_index("name")[
+            ["kpi_total", "score_m2_hsba", "score_m3_rx_out", "score_m4_rx_in", "score_m5_counsel"]
+        ]
+        chart_df.columns = ["Tổng KPI", "M2: Bệnh án", "M3: Đơn Ngoại", "M4: Đơn Nội", "M5: Tư vấn Ngoại"]
+        st.bar_chart(chart_df, height=380)
+
+    with ch2:
+        st.markdown('<div class="mod-title">📊 Điểm KPI Trung bình theo Khoa Lâm sàng</div>', unsafe_allow_html=True)
+        dept_kpi = (
+            df_kpi_sorted.groupby("department", as_index=True)
+            .agg(Điểm_KPI_TB=("kpi_total", "mean"))
+            .round(1)
+        )
+        st.bar_chart(dept_kpi, height=380)
