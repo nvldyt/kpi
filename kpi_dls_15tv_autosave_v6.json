@@ -1,12 +1,12 @@
 {
   "app_version": "v6.0_persistent_split_rx_daily_counsel",
-  "updated_at": "2026-11-17 08:00:55",
+  "updated_at": "2026-11-17 08:00:57",
   "config": {
     "max_score_cap": 100.0,
     "ignore_zero_targets": true,
     "weights": {
       "w_m2_hsba": 50,
-      "w_m3_rx_out": 15,
+      "w_m3_rx_out": 50,
       "w_m4_rx_in": 15,
       "w_m5_counsel": 15,
       "w_m6_consult": 15,
