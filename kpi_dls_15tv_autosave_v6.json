@@ -1,6 +1,6 @@
 {
   "app_version": "v6.0_persistent_split_rx_daily_counsel",
-  "updated_at": "2026-11-17 08:06:42",
+  "updated_at": "2026-11-17 08:10:00",
   "config": {
     "max_score_cap": 100.0,
     "ignore_zero_targets": true,
@@ -472,7 +472,7 @@
       "assigned_task": "Hội chẩn sử dụng thuốc; rà soát bệnh án, hiệu chỉnh liều và can thiệp DLS tại khoa Ngoại tổng hợp 02, TMH, Mắt, RHM.",
       "target_hsba": 35,
       "target_rx_out": 0,
-      "target_rx_in": 450,
+      "target_rx_in": 420,
       "target_counsel_out": 0,
       "target_consult": 5,
       "target_dose": 5,
