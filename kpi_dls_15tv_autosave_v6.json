@@ -1,6 +1,6 @@
 {
   "app_version": "v6.0_persistent_split_rx_daily_counsel",
-  "updated_at": "2026-11-17 07:48:17",
+  "updated_at": "2026-11-17 07:48:20",
   "config": {
     "max_score_cap": 100.0,
     "ignore_zero_targets": true,
@@ -333,7 +333,7 @@
     {
       "id": "#08",
       "name": "Lê Thị Thúy Hằng",
-      "department": "Khoa Khám bệnh & Điều trị Ngoại trú",
+      "department": "Khoa Khám bệnh 01",
       "assigned_task": "Kiểm soát an toàn đơn thuốc ngoại trú, dược lý cơ bản và tư vấn hướng dẫn sử dụng thuốc.",
       "target_hsba": 0,
       "target_rx_out": 300,
