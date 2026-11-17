@@ -1,6 +1,6 @@
 {
   "app_version": "v6.0_persistent_split_rx_daily_counsel",
-  "updated_at": "2026-11-17 08:02:21",
+  "updated_at": "2026-11-17 08:02:26",
   "config": {
     "max_score_cap": 100.0,
     "ignore_zero_targets": true,
@@ -517,7 +517,7 @@
       "assigned_task": "Hội chẩn sử dụng thuốc; rà soát bệnh án, hiệu chỉnh liều và can thiệp DLS tại Cơ sở 03.",
       "target_hsba": 35,
       "target_rx_out": 0,
-      "target_rx_in": 175,
+      "target_rx_in": 485,
       "target_counsel_out": 30,
       "target_consult": 15,
       "target_dose": 20,
