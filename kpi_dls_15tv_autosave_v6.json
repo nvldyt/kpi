@@ -1,6 +1,6 @@
 {
   "app_version": "v6.0_persistent_split_rx_daily_counsel",
-  "updated_at": "2026-11-17 07:48:20",
+  "updated_at": "2026-11-17 07:48:24",
   "config": {
     "max_score_cap": 100.0,
     "ignore_zero_targets": true,
@@ -378,7 +378,7 @@
     {
       "id": "#09",
       "name": "Lê Trần Đạt",
-      "department": "Khoa Hồi sức tích cực - Chống độc (ICU)",
+      "department": "Khoa Hồi sức tích cực - Chống độc 02",
       "assigned_task": "Hội chẩn sử dụng thuốc; rà soát bệnh án, hiệu chỉnh liều và can thiệp DLS tại khoa HSTC-CĐ 02.",
       "target_hsba": 65,
       "target_rx_out": 0,
