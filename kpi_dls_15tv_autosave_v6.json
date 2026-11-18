@@ -1,6 +1,6 @@
 {
   "app_version": "v6.0_persistent_split_rx_daily_counsel",
-  "updated_at": "2026-11-18 06:57:44",
+  "updated_at": "2026-11-18 07:01:01",
   "config": {
     "max_score_cap": 100.0,
     "ignore_zero_targets": true,
@@ -427,7 +427,7 @@
       "assigned_task": "Rà soát đơn ngoại trú, tư vấn người bệnh; Hội chẩn, rà soát bệnh án và chỉnh liều tại khoa Nội tổng hợp 02.",
       "target_hsba": 35,
       "target_rx_out": 0,
-      "target_rx_in": 420,
+      "target_rx_in": 250,
       "target_counsel_out": 200,
       "target_consult": 5,
       "target_dose": 5,
