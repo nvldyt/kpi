@@ -1,6 +1,6 @@
 {
   "app_version": "v6.0_persistent_split_rx_daily_counsel",
-  "updated_at": "2026-11-18 08:51:39",
+  "updated_at": "2026-11-19 01:13:23",
   "config": {
     "max_score_cap": 100.0,
     "ignore_zero_targets": true,
@@ -621,7 +621,7 @@
       "hsba_t6": 0,
       "rx_out_t2": 225,
       "rx_out_t3": 0,
-      "rx_out_t4": 0,
+      "rx_out_t4": 263,
       "rx_out_t5": 0,
       "rx_out_t6": 0,
       "rx_in_t2": 0,
