@@ -1,6 +1,6 @@
 {
   "app_version": "v6.0_persistent_split_rx_daily_counsel",
-  "updated_at": "2026-11-19 06:18:04",
+  "updated_at": "2026-11-19 06:23:52",
   "config": {
     "max_score_cap": 100.0,
     "ignore_zero_targets": true,
@@ -55,7 +55,7 @@
       "consult_t5": 0,
       "consult_t6": 0,
       "dose_t2": 0,
-      "dose_t3": 0,
+      "dose_t3": 1,
       "dose_t4": 2,
       "dose_t5": 0,
       "dose_t6": 0
@@ -84,7 +84,7 @@
       "rx_out_t4": 0,
       "rx_out_t5": 0,
       "rx_out_t6": 0,
-      "rx_in_t2": 0,
+      "rx_in_t2": 8,
       "rx_in_t3": 0,
       "rx_in_t4": 0,
       "rx_in_t5": 0,
