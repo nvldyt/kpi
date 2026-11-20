@@ -1,6 +1,6 @@
 {
   "app_version": "v6.0_persistent_split_rx_daily_counsel",
-  "updated_at": "2026-11-20 03:26:24",
+  "updated_at": "2026-11-20 03:33:56",
   "config": {
     "max_score_cap": 100.0,
     "ignore_zero_targets": true,
@@ -651,7 +651,7 @@
       "department": "Khoa Khám bệnh 03",
       "assigned_task": "Rà soát đơn ngoại trú; trao đổi bác sĩ lựa chọn thuốc, chỉnh liều, xử lý tương tác; tư vấn người bệnh.",
       "target_hsba": 35,
-      "target_rx_out": 900,
+      "target_rx_out": 725,
       "target_rx_in": 0,
       "target_counsel_out": 200,
       "target_consult": 0,
