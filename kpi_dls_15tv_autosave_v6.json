@@ -1,6 +1,6 @@
 {
   "app_version": "v6.0_persistent_split_rx_daily_counsel",
-  "updated_at": "2026-11-20 03:35:55",
+  "updated_at": "2026-11-20 03:35:56",
   "config": {
     "max_score_cap": 100.0,
     "ignore_zero_targets": true,
@@ -434,7 +434,7 @@
       "doctor_consensus_pct": 95.0,
       "intervention_success_pct": 95.0,
       "task_quality_pct": 96.0,
-      "hsba_t2": 0,
+      "hsba_t2": 10,
       "hsba_t3": 10,
       "hsba_t4": 15,
       "hsba_t5": 0,
