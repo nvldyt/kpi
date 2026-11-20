@@ -1,6 +1,6 @@
 {
   "app_version": "v6.0_persistent_split_rx_daily_counsel",
-  "updated_at": "2026-11-20 09:09:05",
+  "updated_at": "2026-11-20 09:18:02",
   "config": {
     "max_score_cap": 100.0,
     "ignore_zero_targets": true,
@@ -123,7 +123,7 @@
       "hsba_t3": 0,
       "hsba_t4": 0,
       "hsba_t5": 0,
-      "hsba_t6": 0,
+      "hsba_t6": 35,
       "rx_out_t2": 0,
       "rx_out_t3": 0,
       "rx_out_t4": 0,
@@ -213,7 +213,7 @@
       "hsba_t3": 0,
       "hsba_t4": 0,
       "hsba_t5": 0,
-      "hsba_t6": 0,
+      "hsba_t6": 35,
       "rx_out_t2": 0,
       "rx_out_t3": 0,
       "rx_out_t4": 0,
