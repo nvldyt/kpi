@@ -1,6 +1,6 @@
 {
   "app_version": "v6.0_persistent_split_rx_daily_counsel",
-  "updated_at": "2026-11-20 08:01:18",
+  "updated_at": "2026-11-20 08:01:20",
   "config": {
     "max_score_cap": 100.0,
     "ignore_zero_targets": true,
@@ -418,7 +418,7 @@
       "dose_t3": 3,
       "dose_t4": 3,
       "dose_t5": 2,
-      "dose_t6": 0
+      "dose_t6": 1
     },
     {
       "id": "#10",
