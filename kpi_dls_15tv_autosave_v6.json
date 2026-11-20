@@ -1,6 +1,6 @@
 {
   "app_version": "v6.0_persistent_split_rx_daily_counsel",
-  "updated_at": "2026-11-20 07:59:30",
+  "updated_at": "2026-11-20 07:59:38",
   "config": {
     "max_score_cap": 100.0,
     "ignore_zero_targets": true,
@@ -403,7 +403,7 @@
       "rx_in_t3": 29,
       "rx_in_t4": 30,
       "rx_in_t5": 29,
-      "rx_in_t6": 0,
+      "rx_in_t6": 30,
       "coun_out_t2": 0,
       "coun_out_t3": 0,
       "coun_out_t4": 0,
